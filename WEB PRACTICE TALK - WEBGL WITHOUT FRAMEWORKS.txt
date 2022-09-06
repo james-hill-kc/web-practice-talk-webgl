@@ -1,0 +1,34 @@
+WEB PRACTICE TALK - WEBGL WITHOUT FRAMEWORKS
+============================================
+
+
+Todo:
+-----
+
+- Decide on presentation software, slide template, fonts etc.
+- Plan structure and content for talk
+- 
+
+
+Basic structure of talk:
+------------------------
+
+25 to 30 mins total + 15 mins for Q&A
+
+- brief history of the GPU
+	- software rendering era
+	- birth of the GPU (including overview of how the GPU works)
+	- before standards (proprietary APIs)
+	- early standards (opengl and directx)
+	- present day (opengl es and webgl)
+
+- key concepts of WebGL
+	- interface from CPU to GPU (shifts architecture focus to how to supply GPU with required data fast enough)
+	- shaders (vertex and fragment)
+	- buffers 
+
+
+
+
+
+===
