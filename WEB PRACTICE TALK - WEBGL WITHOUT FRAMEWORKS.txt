@@ -7,7 +7,8 @@ Todo:
 
 - Decide on presentation software, slide template, fonts etc.
 - Plan structure and content for talk
-- 
+- Collect images and references
+- Get demo program working and commented
 
 
 Basic structure of talk:
@@ -18,17 +19,42 @@ Basic structure of talk:
 - brief history of the GPU
 	- software rendering era
 	- birth of the GPU (including overview of how the GPU works)
+		- cpu vs gpu
+			- cpu
+				- small number of large cores
+				- general purpose
+				- fast access to system RAM
+				- best for serial operations
+			- gpu
+				- large number of small cores
+				- special purpose
+				- slow access to RAM (has VRAM but data must be transferred from RAM by CPU)
+				- best for parallel operations (drawing pixels, mining bitcoins, cracking passwords...)
 	- before standards (proprietary APIs)
 	- early standards (opengl and directx)
 	- present day (opengl es and webgl)
 
-- key concepts of WebGL
+- 3D rendering pipeline
+	- coordinate system (right handed, view frustum with near/far planes)
+	- local, world and screen space
+	- model, view and projection transforms
+
+- WebGL API
 	- interface from CPU to GPU (shifts architecture focus to how to supply GPU with required data fast enough)
 	- shaders (vertex and fragment)
-	- buffers 
+
+- Demo
+	- input controls for camera + model movement, rotation etc.
+	- basic point lighting?
 
 
 
+Further reading links:
+----------------------
+
+https://learnopengl.com/Getting-started/Hello-Triangle
+https://medium.com/@TheGeekiestOne/opengl-introduction-to-the-pipeline-glut-85c9c05fb76c
+https://www.songho.ca/opengl/ (brain melter)
 
 
 ===
