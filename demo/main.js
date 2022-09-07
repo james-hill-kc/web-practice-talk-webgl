@@ -1,48 +1,60 @@
 /* Basic WebGL Demo
 *******************/
 
+import { start as startInput, keyStates } from './input.js';
+
 // Source code for shaders
-// Vertex shaders run an iteration for each vertex
-const vertexShaderSrc = `
-	uniform mat4 uProjectionMatrix;
-	uniform mat4 uModelViewMatrix;
-	attribute vec3 aVertex;
-	attribute vec2 aTextureCoord;
-	varying highp vec2 vTextureCoord;
+// To enable GLSL 300 es, the first line of each MUST be "#version 300 es" - no characters before it, including newlines, spaces etc.
+
+// Vertex shader runs one iteration for each vertex
+// It generates pixel coordinates using the input data, and outputs them for use by the fragment shader
+const vertexShaderSource = `#version 300 es
+
+	uniform mat4 u_projection_matrix;
+	uniform mat4 u_model_view_matrix;
+	in vec3 a_vertex_position;
+	in vec2 a_texture_coord;
+	out vec2 v_texture_coord;
 
 	void main(void) {
-		vTextureCoord = aTextureCoord;
-		gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertex, 1.0);
+		v_texture_coord = a_texture_coord;
+		gl_Position = u_projection_matrix * u_model_view_matrix * vec4(a_vertex_position, 1.0);
 	}
 `;
 
-// Fragment shaders run an iteration for each pixel
-const fragmentShaderSrc = `
+// Fragment shader runs one iteration for each pixel
+// Output is the final colour of the pixel to be rendered on the screen
+const fragmentShaderSource = `#version 300 es
+
 	precision highp float;
-	uniform sampler2D uSampler;
-	varying highp vec2 vTextureCoord;
+
+	uniform sampler2D u_sampler;
+	in vec2 v_texture_coord;
+	out vec4 fragmentColor;
 
 	void main(void){
-		vec3 textureColour = texture2D(uSampler, vTextureCoord.st).rgb;
-		gl_FragColor = vec4(textureColour, 1.0);
+		vec3 texture_color = texture(u_sampler, v_texture_coord.st).rgb;
+		fragmentColor = vec4(texture_color, 1.0);
 	}
 `;
 
-// Canvas and context
 const canvas = document.querySelector("#webgl-canvas");
-const gl = canvas.getContext("webgl");
+const gl = canvas.getContext("webgl2");
 
-// We will use these to feed data to the shader program running on the GPU (vertices, textures and so on)
 const shaderAttributes = {}; // attributes are shader params which vary for each iteration of the shader (eg. vertices)
 const shaderUniforms = {}; // uniforms are shader params which are constant for all iterations of the shader
 
-// Matrices used for model, view and projection transforms
-let modelViewMatrix = null;
-let projectionMatrix = null;
+let rotationMatrix = mat4.create();
+let modelViewMatrix = mat4.create();
+let projectionMatrix = mat4.create();
 
 let shaderProgram = null; // Reference to the shader program
+
+let vertexBuffer = null;
+let textureBuffer = null;
+
 let texture = null;
-let textureLoaded = false;
+let textureLoaded = false; // We don't want to use the texture until it's loaded
 
 const cubeVertices = [
 	[ -1,  1,  1 ], // left, top, front
@@ -55,7 +67,7 @@ const cubeVertices = [
 	[ -1, -1, -1 ], // left, bottom, back 
 ];
 
-// WebGL winding order is clockwise (triangles drawn in clockwise direction are considered front-facing)
+// This is inefficient, but easier to visualise
 const cubeTriangles = {
 	frontFace: {
 		a: [cubeVertices[0], cubeVertices[1], cubeVertices[2]],
@@ -96,7 +108,6 @@ const cubeFaceTextureCoordinates = {
 	]
 };
 
-
 const vertices = [
 	cubeTriangles.frontFace.a[0], 	cubeTriangles.frontFace.a[1], 	cubeTriangles.frontFace.a[2],
 	cubeTriangles.frontFace.b[0], 	cubeTriangles.frontFace.b[1], 	cubeTriangles.frontFace.b[2],
@@ -127,76 +138,70 @@ const textureCoordinates = [
 	cubeFaceTextureCoordinates.b
 ].flat();
 
+const modelPosition = {
+	x: 0,
+	y: 0,
+	z: -5 // start position is 5 units "into" the screen
+};
+
 
 function setupBuffers () {
+	vertexBuffer = gl.createBuffer();
 
-	polygonBuffer = gl.createBuffer();
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, polygonBuffer);
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-	polygonTextureBuffer = gl.createBuffer();
+	textureBuffer = gl.createBuffer();
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, polygonTextureBuffer);
+	gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 }
 
 
-function setupShaders () {
+function createShader (gl, type, source) {
+	let shader = gl.createShader(type);
 
-	// Create an empty shader program
+	gl.shaderSource(shader, source);
+	gl.compileShader(shader);
+
+	if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+		console.warn(`${type} shader compilation failed:`);
+		console.log(gl.getShaderInfoLog(shader));
+		return false;
+	}
+
+	return shader;
+}
+
+
+function setupShaders () {
 	shaderProgram = gl.createProgram();
 
-	// Create empty vertex and fragment shaders
-	const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-	const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+	const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 
-	// Compile the shader source into shader programs to run on the GPU
-	gl.shaderSource(vertexShader, vertexShaderSrc);
-	gl.compileShader(vertexShader);
-	gl.shaderSource(fragmentShader, fragmentShaderSrc);
-	gl.compileShader(fragmentShader);
-
-	// Check if compilation succeeded
-	if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-		console.warn('vertex shader compilation failed');
-		console.log(gl.getShaderInfoLog(vertexShader));
-		return false;
-	}
-	if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-		console.warn('fragment shader compilation failed');
-		console.log(gl.getShaderInfoLog(fragmentShader));
-		return false;
-	}
-
-	// Attach the vertex and fragment shaders to the shader program
 	gl.attachShader(shaderProgram, vertexShader);
 	gl.attachShader(shaderProgram, fragmentShader);
-
-	// Link the shader program
+	
 	gl.linkProgram(shaderProgram);
-
-	// Tell WebGL to use the shader program
+	
 	gl.useProgram(shaderProgram);
 
 	// Set up inputs needed to feed data to the shader program
-	// Vertices and texture coordinates vary with each shader iteration, so are declared as attributes
-	shaderAttributes["aVertex"] = gl.getAttribLocation(shaderProgram, "aVertex"); // we must request the location of the attribute input from the shader program
-	gl.enableVertexAttribArray(shaderAttributes["aVertex"]); // then the input must be enabled
+	shaderAttributes["a_vertex_position"] = gl.getAttribLocation(shaderProgram, "a_vertex_position"); // we must request the location of the attribute input from the shader program
+	gl.enableVertexAttribArray(shaderAttributes["a_vertex_position"]); // then the input must be enabled
 
-	shaderAttributes["aTextureCoord"] = gl.getAttribLocation(shaderProgram, "aTextureCoord");
-	gl.enableVertexAttribArray(shaderAttributes["aTextureCoord"]);
+	shaderAttributes["a_texture_coord"] = gl.getAttribLocation(shaderProgram, "a_texture_coord");
+	gl.enableVertexAttribArray(shaderAttributes["a_texture_coord"]);
 
-	// the viewModel and projection matrices are the same for all shader iterations, so are declared as uniforms
-	shaderUniforms["uProjectionMatrix"] = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
-	shaderUniforms["uModelViewMatrix"] = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+	shaderUniforms["u_projection_matrix"] = gl.getUniformLocation(shaderProgram, "u_projection_matrix");
+	shaderUniforms["u_model_view_matrix"] = gl.getUniformLocation(shaderProgram, "u_model_view_matrix");
 
 	return true;
 }
 
 
 function setupTextures () {
-
 	texture = gl.createTexture();
 
 	var img = new Image();
@@ -213,75 +218,117 @@ function setupTextures () {
 		textureLoaded = true;
 	};
 
-	img.src = "./test1.png";
+	img.src = "./crate.png";
 
 	return true;
 }
 
 
-function update () {
-	// Rotate the model
-	mat4.rotateX(modelViewMatrix, modelViewMatrix, 0.001);
-	mat4.rotateY(modelViewMatrix, modelViewMatrix, 0.001);
-	mat4.rotateZ(modelViewMatrix, modelViewMatrix, 0.001);
+function updateModelPosition () {
+	const speed = 0.05;
 
-	// Translate the model
-	// let transformationVector = vec3.create();
-	// vec3.set(transformationVector, 0, 0, -0.01);
-	// mat4.translate(modelViewMatrix, modelViewMatrix, transformationVector);
+	if (keyStates.left) {
+		modelPosition.x -= speed;
+	}
+	else if (keyStates.right) {
+		modelPosition.x += speed;
+	}
+
+	if (keyStates.up) {
+		modelPosition.z -= speed;
+	}
+	else if (keyStates.down) {
+		modelPosition.z += speed;
+	}
+}
+
+
+function updateModelRotation () {
+	const speed = 0.01;
+
+	if (keyStates.w) {
+		mat4.rotateX(rotationMatrix, rotationMatrix, speed);
+	}
+	else if (keyStates.s) {
+		mat4.rotateX(rotationMatrix, rotationMatrix, -speed);
+	}
+
+	if (keyStates.a) {
+		mat4.rotateY(rotationMatrix, rotationMatrix, speed);
+	}
+	else if (keyStates.d) {
+		mat4.rotateY(rotationMatrix, rotationMatrix, -speed);
+	}
+
+	if (keyStates.q) {
+		mat4.rotateZ(rotationMatrix, rotationMatrix, speed);
+	}
+	else if (keyStates.e) {
+		mat4.rotateZ(rotationMatrix, rotationMatrix, -speed);
+	}
+}
+
+
+function updateModelViewMatrix () {
+	modelViewMatrix = mat4.identity(modelViewMatrix);
+
+	// Position must be tracked separately. If we just continually reuse modelViewMatrix, it will accumulate values,
+	// which has the effect of translating (moving) the object relative to its rotation, which is usually not desirable
+	let positionVector = vec3.create();
+	vec3.set(positionVector, modelPosition.x, modelPosition.y, modelPosition.z);
+
+	modelViewMatrix = mat4.translate(modelViewMatrix, mat4.create(), positionVector);
+	modelViewMatrix = mat4.multiply(modelViewMatrix, modelViewMatrix, rotationMatrix);
+}
+
+
+function update () {
+	updateModelPosition();
+	updateModelRotation();
+	updateModelViewMatrix();
 }
 
 
 function draw () {
-
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear the canvas
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, polygonBuffer);
-	gl.vertexAttribPointer(shaderAttributes["aVertex"], 3, gl.FLOAT, false, 0, 0);
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+	gl.vertexAttribPointer(shaderAttributes["a_vertex_position"], 3, gl.FLOAT, false, 0, 0);
 
-	gl.uniformMatrix4fv(shaderUniforms["uProjectionMatrix"], false, new Float32Array(projectionMatrix));
-	gl.uniformMatrix4fv(shaderUniforms["uModelViewMatrix"], false, new Float32Array(modelViewMatrix));
+	gl.uniformMatrix4fv(shaderUniforms["u_projection_matrix"], false, new Float32Array(projectionMatrix));
+	gl.uniformMatrix4fv(shaderUniforms["u_model_view_matrix"], false, new Float32Array(modelViewMatrix));
 
 	if (textureLoaded) {
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.uniform1i(shaderUniforms["uSampler"], 0);
+		gl.uniform1i(shaderUniforms["u_sampler"], 0);
 	}
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, polygonTextureBuffer);
-	gl.vertexAttribPointer(shaderAttributes["aTextureCoord"], 2, gl.FLOAT, false, 0, 0);
+	gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
+	gl.vertexAttribPointer(shaderAttributes["a_texture_coord"], 2, gl.FLOAT, false, 0, 0);
 
 	gl.drawArrays(gl.TRIANGLES, 0, 36);
 }
 
 
 function renderingLoop () {
-
 	update();
 	draw();
 	
-	// Next loop
 	window.requestAnimationFrame(renderingLoop);
 }
 
 
 function start () {
-
-	// Check for WebGL support
-	if (gl === null) {
-		console.warn('Unable to initialize WebGL. Your browser or machine may not support it.');
+	if (!gl) {
+		console.warn('WebGL 2 not supported.');
 		return;
 	}
 
-	// Set the color which will be used to clear the canvas before each render
-	gl.clearColor(0, 0, 0, 1);
+	gl.clearColor(0, 0, 0, 1); // Set the color which will be used to clear the canvas before each render
 
-	// Set up depth buffer
-	gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.DEPTH_TEST); // Set up depth buffer
 	gl.depthFunc(gl.LEQUAL);
-
-	// Set up projection matrix using glmatrix library
-	projectionMatrix = mat4.create();
 
 	const verticalFieldOfViewAngleInRadians = 45 * Math.PI / 180; // radians
 	const viewportAspectRatio = canvas.width / canvas.height;
@@ -296,19 +343,6 @@ function start () {
 		farClippingBound
 	);
 
-	// Set up a model view matrix
-	// this encodes the result of the model and view transforms
-	// the model transform transforms the object relative to the world (position, rotation, scale)
-	// the view transform orients the object it relative to the camera viewpoint
-	// finally, the perspective transform projects the result of the previous transforms into screen space to give 2D rendering coordinates
-	modelViewMatrix = mat4.create();
-	let moveVector = vec3.create();
-
-	// Translate the model view matrix 5 units in negative Z axis ("into" the screen)
-	vec3.set(moveVector, 0, 0, -5.0);
-	mat4.translate(modelViewMatrix, mat4.create(), moveVector);
-
-	// Initialise buffers, shaders, and textures
 	setupBuffers();
 
 	if (!setupShaders()) {
@@ -320,8 +354,9 @@ function start () {
 		return;
 	}
 
-	// Start render loop
-	window.requestAnimationFrame(renderingLoop);
+	startInput();
+
+	window.requestAnimationFrame(renderingLoop); // Start render loop
 }
 
 
