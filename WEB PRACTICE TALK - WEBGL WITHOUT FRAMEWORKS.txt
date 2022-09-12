@@ -2,6 +2,10 @@ WEB PRACTICE TALK - WEBGL WITHOUT FRAMEWORKS
 ============================================
 
 
+
+continue reading - https://www.provideocoalition.com/after-effects-performance-part-10-the-birth-of-the-gpu/
+
+
 Todo:
 -----
 
@@ -9,6 +13,161 @@ Todo:
 - Plan structure and content for talk
 - Collect images and references
 - Get demo program working and commented
+
+
+Slides and script:
+------------------
+
+1. WebGL Without Frameworks: an introduction
+
+2. History of the GPU - software rendering
+	- in the 90s, hardware accelerated graphics existed, but were too expensive for consumers
+	- 3d games such as Doom and Quake implemented software renderers, which ran on the CPU
+	- even at 640x480 resolution, CPU must render 307,200 pixels per frame
+	- to achieve 60fps, this must happen every 16.67 milliseconds
+	- obviously this is very taxing on the CPU, and takes precious time away from other tasks
+	- also means rendering is limited by CPU speed
+
+3. History of the GPU - origins of the modern GPU
+	- the popularity of fast 3D games like Quake created a market for 3D accelerator cards
+	- these "GPUs" worked differently from traditional CPUs
+	- CPU has a handful of general-purpose cores which are very fast for sequential processing
+	- however, they have very limited parallel processing capabilities
+	- GPU has a huge number of smaller cores which are specialised for certain tasks
+	- this is much faster for rendering, as pixels can be calculated in parallel by the different cores
+	- also frees up more of the CPU time for other tasks
+
+4. History of the GPU - evolution of API standards
+	- in the early years of consumer GPUs, there were many different card manufacturers
+	- major applications had to support many cards
+	- every manufacturer had their own proprietary API, which made development time consuming and difficult
+	- one such manufacturer, SGI, was pressured by competition to open-source their IRIS GL API as OpenGL
+	- famously backed by John Carmack due to its ease of use and other factors, OpenGL became the first API standard to gain traction
+	- Microsoft quickly followed with their own offering, DirectX, which was bad at first but quickly grew to rival OpenGL
+
+5. Present day - OpenGL ES and WebGL
+	- Today, there are several different subsets of OpenGL
+	- The one we are interested in is WebGL, derived from OpenGL ES
+	- OpenGL ES is a version of OpenGL for embedded systems such as phones, tablets, and handhelds
+	- OpenGL ES has been called "most widely deployed 3D graphics API in history"
+
+6. The WebGL API - overview
+	- interface to GPU from javascript
+	- GPU is fast, interface to/from CPU is slow
+	- API is focused on configuring shaders and keeping them fed with data
+
+7. The WebGL API - introduction to shaders
+
+8. The WebGL pipeline - coordinate system and camera frustum
+
+9. The WebGL pipeline - local, world and screen space
+
+10. The WebGL pipeline - model, view and projection transforms
+
+12. Demo - overview
+	- our WebGL program just renders a cube with a wooden crate texture
+	- the cube can be moved and rotated using the keyboard
+
+13. Demo - setup
+	- index.html with canvas, some simple styling, and script includes
+	- CDN link to gl-matrix library (handles matrix operations, not something we want to do ourselves)
+	- input.js - listens for keyboard events from specific keys and stores them in state - only used to make demo interactive
+	- main.js - all webgl code is here
+	- http-server is used to serve the page locally
+
+14. Demo - variables and data
+	- shader source code - we will come back to these later
+	- canvas and webgl context from it
+	- attributes and uniforms objects will hold references to shader input parameters
+	- matrices for rotation, model view, and projection transforms (global for convenience)
+	- shader program will hold the program resulting from shader compilation
+	- vertex and texture buffers will hold coordinate data to be sent to the shaders
+	- texture will hold image asset
+	- model data for our cube
+
+15. Demo - initialisation
+	- gl support check
+	- set clear color and clear canvas
+	- configure depth buffer (hardware z-buffer)
+	- set field of view and aspect ratio
+	- set near and far clipping bounds (farclip set quite close so effect is easily visible)
+	- configure projection matrix using gl-matrix
+
+16. Demo - initialising vertex and texture buffers
+	- create an empty buffer with gl.createBuffer
+	- bind the buffer to one of a predefined set of targets 
+	- gl.ARRAY_BUFFER indicates the buffer contains vertex data (vertex coords, texture coords etc.)
+	- initialise the buffer with gl.bufferData
+	- gl.STATIC_DRAW hints to WebGL that we don't intend to repeatedly change the buffer data at runtime, so it can optimise appropriately
+
+17. Demo - initialising shaders
+	- create a new shader program
+	- create vertex and fragment shaders from GLSL source string (defined up top):
+		- create a shader of the correct type
+		- supply the source and compile the shader
+		- return the compiled shader if there were no errors
+	- attach the shaders to the shader program
+	- link the program, and tell WebGL to use it (possible to define multiple programs and swap them out)
+	- enable data inputs to the shader program, and store references so we can use them
+
+18. Demo - initialising textures
+	- create a new WebGL texture using gl.createTexture
+	- load an image asset to use for the texture
+	- on image load, bind the texture and set various config data
+
+19. Demo - finishing initialisation
+	- start the input submodule (binds keyboard event handlers)
+	- start the rendering loop by calling requestAnimationFrame on the renderLoop method
+
+20. Demo - the rendering loop - part 1 - update
+	- updates the scene according to user input
+	- update model position 
+		- moves the cube if the correct keys are pressed (only X and Z)
+	- update model rotation 
+		- rotates the cube if the correct keys are pressed
+	- update model view matrix
+		- combines the position and rotation transforms into a single transform
+		- first the model view matrix is reset to zero using the identity method
+		- a 3d vector is created containing the cube position
+		- the zeroed model view matrix is translated by that vector to apply the position
+		- then multiplied with the rotation matrix to apply the rotation
+
+21. Demo - the rendering loop - part 2 - draw
+	- canvas is cleared (apparently not strictly necessary)
+	- bind the vertex buffer we set up earlier to send its vertex data to the GPU
+	- configure the vertex buffer with vertexAttribPointer 
+		- array buffers are generic, so we need to tell WebGL how to interpret the data
+		- most interesting param is size, which indicates the number of array elements per vertex (3 in our case, for x, y, and z coords)
+	- send the projection and model view matrices to the GPU in the expected format
+	- if the texture has loaded, bind it to a texture unit and send it to the GPU
+	- bind and send the texture buffer data to the GPU (similar process to vertex data)
+	- finally, issue the command to draw triangles using the supplied data
+	- go to the next render loop
+
+22. Demo - GPU-side - the vertex shader
+	- this runs first, for each vertex in the vertex buffer we supplied
+	- job is to generate output data to be sent to the fragment shader
+	- in our case, the outputs are the vertex's texture coordinate and screen coordinate
+	- the texture coordinate is just the matching value from the supplied texture buffer
+	- the screen position (more accurately the clip space position) of the vertex is the vertex's input coordinate multiplied with the projection and model view matrices (the input coord must be converted to a 4d vector first)
+
+23. Demo - GPU-side - the fragment shader
+	- this runs second, for each fragment generated by the vertex shader stage
+	- for our purposes, a fragment is just a pixel on the screen
+	- job is to generate the correct colour for the pixel
+	- the vertex shader determines how many pixels are drawn
+	- output values from the vertex shader are interpolated for each iteration of the fragment shader (eg. if the fragment for the current iteration is between two vertex coordinates, its texture coordinate will be interpolated between the texture coords of the two vertices)
+	- in our case, the output colour is just the colour sampled from the texture we supplied at the fragment's interpolated position
+
+24. Some more WebGL features:
+	- lighting
+	- transparency and blending
+	- cubemaps and environment maps
+	- with shaders, many advanced features are possible, such as normal mapping, parallax mapping, refraction etc.
+	- webgl2 brings even more, such as 3d textures, async queries (eg. for occlusion data, profiling etc.)
+	- and many more...
+
+25. Questions?
 
 
 Basic structure of talk:
@@ -62,6 +221,14 @@ https://webgl2fundamentals.org/webgl/lessons/webgl-fundamentals.html
 https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial
 https://jsantell.com/model-view-projection/
 https://learnopengl.com/Getting-started/Hello-Triangle
+
+
+Quotes:
+-------
+
+"…I am hoping that the vendors shipping second generation cards in the coming year can be convinced to support OpenGL. If this doesn’t happen early on and there are capable cards that glquake does not run on, then I apologize, but I am taking a little stand in my little corner of the world with the hope of having some small influence on things that are going to effect us for many years to come." - John Carmack, December 1996
+
+
 
 
 ===

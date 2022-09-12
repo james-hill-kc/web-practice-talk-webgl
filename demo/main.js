@@ -145,16 +145,19 @@ const modelPosition = {
 };
 
 
+function setupBuffer (sourceData) {
+	const buffer = gl.createBuffer();
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sourceData), gl.STATIC_DRAW);
+
+	return buffer;
+}
+
+
 function setupBuffers () {
-	vertexBuffer = gl.createBuffer();
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-	textureBuffer = gl.createBuffer();
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+	vertexBuffer = setupBuffer(vertices);
+	textureBuffer = setupBuffer(textureCoordinates);
 }
 
 
@@ -213,7 +216,6 @@ function setupTextures () {
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		textureLoaded = true;
 	};
