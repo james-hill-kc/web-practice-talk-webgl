@@ -57,12 +57,32 @@ Slides and script:
 	- API is focused on configuring shaders and keeping them fed with data
 
 7. The WebGL API - introduction to shaders
+	- shaders form the GPU program
+	- GLSL - strict, specialised C-like language
+	- 2 main types
+	- vertex shader:
+		- runs first
+		- one iteration per vertex
+		- output is vertex screen coordinate
+	- fragment shader:
+		- runs second
+		- one iteration per fragment (pixel)
+		- input is interpolated output from vertex shader
+		- output is fragment (pixel) colour
 
-8. The WebGL pipeline - coordinate system and camera frustum
+8. The WebGL pipeline - coordinate system
+	- right-handed coordinate system
+	- near and far clipping planes
 
-9. The WebGL pipeline - local, world and screen space
-
-10. The WebGL pipeline - model, view and projection transforms
+9-10. The WebGL pipeline - transforms
+	- model vertices defined in model space (relative)
+	- converted to screen coordinates by series of transforms:
+		- translate (move)
+		- rotate
+		- scale
+		- perspective projection
+	- done using matrix multiplication
+	- multiplication order is critical
 
 12. Demo - overview
 	- our WebGL program just renders a cube with a wooden crate texture

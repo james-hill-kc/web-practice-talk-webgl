@@ -68,6 +68,7 @@ const cubeVertices = [
 ];
 
 // This is inefficient, but easier to visualise
+// we are not culling backfaces, so winding order does not matter
 const cubeTriangles = {
 	frontFace: {
 		a: [cubeVertices[0], cubeVertices[1], cubeVertices[2]],
