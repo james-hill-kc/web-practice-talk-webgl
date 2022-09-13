@@ -29,27 +29,27 @@ Slides and script:
 	- also means rendering is limited by CPU speed
 
 3. History of the GPU - origins of the modern GPU
-	- the popularity of fast 3D games like Quake created a market for 3D accelerator cards
+	- popularity of fast 3D games like Quake created a market for consumer-level 3D accelerator cards
 	- these "GPUs" worked differently from traditional CPUs
-	- CPU has a handful of general-purpose cores which are very fast for sequential processing
-	- however, they have very limited parallel processing capabilities
-	- GPU has a huge number of smaller cores which are specialised for certain tasks
-	- this is much faster for rendering, as pixels can be calculated in parallel by the different cores
+	- CPU has a small number of fast, general-purpose cores which are good for sequential processing
+	- however, they have limited parallel processing capabilities
+	- GPU has a huge number of smaller cores which are specialised for rendering operations
+	- this makes rendering much faster, because many pixels can be calculated in parallel by the different cores
 	- also frees up more of the CPU time for other tasks
 
 4. History of the GPU - evolution of API standards
-	- in the early years of consumer GPUs, there were many different card manufacturers
-	- major applications had to support many cards
-	- every manufacturer had their own proprietary API, which made development time consuming and difficult
-	- one such manufacturer, SGI, was pressured by competition to open-source their IRIS GL API as OpenGL
-	- famously backed by John Carmack due to its ease of use and other factors, OpenGL became the first API standard to gain traction
+	- in the early years of consumer GPUs, there were many different card manufacturers which major applications needed to support
+	- every manufacturer had their own proprietary API, which made development time-consuming and difficult
+	- one of these manufacturers, SGI, open-sourced their IRIS GL API as OpenGL, following pressure from competitors
+	- famously backed by John Carmack of id software, OpenGL became the first API standard to gain traction
 	- Microsoft quickly followed with their own offering, DirectX, which was bad at first but quickly grew to rival OpenGL
+	- fun fact, the Xbox console was originally named the DirectX Box, which was shortened to give its final name
 
 5. Present day - OpenGL ES and WebGL
 	- Today, there are several different subsets of OpenGL
 	- The one we are interested in is WebGL, derived from OpenGL ES
 	- OpenGL ES is a version of OpenGL for embedded systems such as phones, tablets, and handhelds
-	- OpenGL ES has been called "most widely deployed 3D graphics API in history"
+	- it has been called "most widely deployed 3D graphics API in history"
 
 6. The WebGL API - overview
 	- interface to GPU from javascript
