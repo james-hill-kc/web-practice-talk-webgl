@@ -56,6 +56,9 @@ Slides and script:
 	- GPU is fast, interface to/from CPU is slow
 	- API is focused on configuring shaders and keeping them fed with data
 
+
+DONT FORGET - add blank demo slides with images to reference during the code demo (eg. cube diagrams showing vertex coords etc.)
+
 7. The WebGL API - introduction to shaders
 	- shaders form the GPU program
 	- GLSL - strict, specialised C-like language
